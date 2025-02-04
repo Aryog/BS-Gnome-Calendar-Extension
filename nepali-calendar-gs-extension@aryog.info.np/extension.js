@@ -39,11 +39,21 @@ const Indicator = GObject.registerClass(
   class Indicator extends PanelMenu.Button {
     _init(extensionPath) {
       super._init(0.0, 'Nepali Calendar');
-
       this._extensionPath = extensionPath;
       this._currentDate = getCurrentNepaliDate();
 
-      // Create the top bar item
+      this._createTopBar();
+      this._createPopupMenu();
+      this._updateDisplay();
+      this._updateCalendarGrid();
+      this._setupAutomaticUpdates();
+
+      this.menu.connect('menu-closed', () => {
+        this._resetToCurrentDate();
+      });
+    }
+
+    _createTopBar() {
       this._topBox = new St.BoxLayout({
         style_class: 'np-cal-panel-status-menu-box'
       });
@@ -56,18 +66,27 @@ const Indicator = GObject.registerClass(
 
       this._topBox.add_child(this._topLabel);
       this.add_child(this._topBox);
+    }
 
-      // Create the popup menu
+    _createPopupMenu() {
       let menuItem = new PopupMenu.PopupMenuItem('');
       menuItem.sensitive = false;
 
-      // Create calendar container
       this._calendarBox = new St.BoxLayout({
         vertical: true,
         style_class: 'np-calendar'
       });
 
-      // Add navigation buttons
+      this._createCalendarHeader();
+      this._createCalendarGrid();
+
+      menuItem.add_child(this._calendarBox);
+      this.menu.addMenuItem(menuItem);
+
+      this._createInfoSection();
+    }
+
+    _createCalendarHeader() {
       this._calendarHeader = new St.BoxLayout({
         style_class: 'np-calendar-header',
         vertical: false,
@@ -101,8 +120,9 @@ const Indicator = GObject.registerClass(
       this._calendarHeader.add_child(this._monthLabel);
       this._calendarHeader.add_child(this._nextButton);
       this._calendarBox.add_child(this._calendarHeader);
+    }
 
-      // Create calendar grid
+    _createCalendarGrid() {
       this._calendar = new St.Widget({
         style_class: 'np-calendar-grid',
         layout_manager: new Clutter.GridLayout({
@@ -111,7 +131,6 @@ const Indicator = GObject.registerClass(
       });
       this._calendarBox.add_child(this._calendar);
 
-      // Create day headers
       for (let i = 0; i < 7; i++) {
         let dayHeader = new St.Label({
           text: DAYS_OF_WEEK[i],
@@ -120,7 +139,6 @@ const Indicator = GObject.registerClass(
         this._calendar.layout_manager.attach(dayHeader, i, 0, 1, 1);
       }
 
-      // Create day grid
       this._dayButtons = [];
       for (let row = 0; row < 6; row++) {
         for (let col = 0; col < 7; col++) {
@@ -138,11 +156,9 @@ const Indicator = GObject.registerClass(
           this._dayButtons.push({ button: dayButton, label: dayLabel });
         }
       }
+    }
 
-      menuItem.add_child(this._calendarBox);
-      this.menu.addMenuItem(menuItem);
-
-      // Add info section
+    _createInfoSection() {
       this._infoBox = new St.BoxLayout({
         vertical: true,
         style_class: 'np-calendar-info'
@@ -163,28 +179,13 @@ const Indicator = GObject.registerClass(
       infoItem.sensitive = false;
       infoItem.add_child(this._infoBox);
       this.menu.addMenuItem(infoItem);
-
-      // Update display
-      this._updateDisplay();
-      this._updateCalendarGrid();
-
-      // Set up automatic updates
-      this._setupAutomaticUpdates();
-
-      // Connect to the menu-closed signal
-      this.menu.connect('menu-closed', () => {
-        this._resetToCurrentDate();
-      });
     }
 
     _updateDisplay() {
       try {
         const dateInfo = formatNepaliDateData(this._currentDate, this._extensionPath);
-
-        // Update only the month label in the calendar header
         this._monthLabel.set_text(`${dateInfo.nepaliMonth} ${dateInfo.nepaliYear}`);
 
-        // Update the top bar label only with the current date
         const currentDateInfo = getCurrentNepaliDate();
         const currentTopBarInfo = formatNepaliDateData(currentDateInfo, this._extensionPath);
         this._topLabel.set_text(`${currentTopBarInfo.nepaliDay} ${currentTopBarInfo.nepaliMonth} ${currentTopBarInfo.nepaliYear}`);
@@ -203,25 +204,6 @@ const Indicator = GObject.registerClass(
 
         const firstDayOfWeek = this._getFirstDayOfWeek(this._currentDate.nepaliYear, this._currentDate.nepaliMonth);
 
-        // Calculate previous month data
-        let prevMonth = this._currentDate.nepaliMonth - 1;
-        let prevYear = this._currentDate.nepaliYear;
-        if (prevMonth < 1) {
-          prevMonth = 12;
-          prevYear -= 1;
-        }
-        const prevMonthData = getYearDataFromCache(prevYear, this._extensionPath)[prevMonth - 1].days;
-        const prevMonthDaysToShow = firstDayOfWeek;
-
-        // Calculate next month data
-        let nextMonth = this._currentDate.nepaliMonth + 1;
-        let nextYear = this._currentDate.nepaliYear;
-        if (nextMonth > 12) {
-          nextMonth = 1;
-          nextYear += 1;
-        }
-        const nextMonthData = getYearDataFromCache(nextYear, this._extensionPath)[nextMonth - 1].days;
-
         // Clear all buttons
         this._dayButtons.forEach(({ button, label }) => {
           button.style_class = 'np-calendar-day';
@@ -229,80 +211,48 @@ const Indicator = GObject.registerClass(
           label.style_class = 'np-calendar-day-label np-calendar-day-bold';
         });
 
-        // Fill in the days
+        // Fill in the current month's days only
         let dayCounter = 0;
-        let totalDays = monthData.length + prevMonthDaysToShow;
-        for (let i = 0; i < this._dayButtons.length; i++) {
+        for (let i = firstDayOfWeek; i < firstDayOfWeek + monthData.length; i++) {
           const { button, label } = this._dayButtons[i];
+          const dayData = monthData[dayCounter];
+          label.text = dayData.day;
 
-          if (i < prevMonthDaysToShow) {
-            // Fill with previous month's days
-            const dayData = prevMonthData[prevMonthData.length - prevMonthDaysToShow + i];
-            label.text = dayData.day;
-            button.add_style_class_name('np-calendar-prev-month');
-          } else if (dayCounter < monthData.length) {
-            // Fill with current month's days
-            const dayData = monthData[dayCounter];
-            label.text = dayData.day;
-
-            // Style current day
-            if (parseInt(dayData.dayInEn) === this._currentDate.nepaliDay) {
-              button.style_class = 'np-calendar-day np-calendar-today np-calendar-today-blue';
-            }
-
-            // Style holidays
-            if (dayData.isHoliday) {
-              button.add_style_class_name('np-calendar-holiday');
-            }
-
-            // Style Saturdays
-            if (i % 7 === 6) {
-              button.add_style_class_name('np-calendar-saturday');
-            }
-
-            dayCounter++;
-          } else {
-            // Fill with next month's days
-            const dayData = nextMonthData[i - totalDays];
-            label.text = dayData.day;
-            button.add_style_class_name('np-calendar-next-month');
+          // Style current day
+          if (parseInt(dayData.dayInEn) === this._currentDate.nepaliDay) {
+            button.style_class = 'np-calendar-day np-calendar-today np-calendar-today-blue';
           }
+
+          // Style holidays
+          if (dayData.isHoliday) {
+            button.add_style_class_name('np-calendar-holiday');
+          }
+
+          // Style Saturdays
+          if (i % 7 === 6) {
+            button.add_style_class_name('np-calendar-saturday');
+          }
+
+          dayCounter++;
         }
       } catch (error) {
         logError(error, 'Failed to update calendar grid');
       }
     }
 
-    _getDaysInMonth(year, month) {
-      // This is a simplified version - you should use your actual data
-      const daysInMonth = {
-        1: 31, 2: 31, 3: 31, 4: 32, 5: 31, 6: 31,
-        7: 30, 8: 30, 9: 30, 10: 29, 11: 30, 12: 30
-      };
-      return daysInMonth[month] || 30;
-    }
-
     _getFirstDayOfWeek(year, month) {
       try {
-        // Create a new Date object for the first day of the given month and year
         const firstDayDate = new Date(year, month - 1, 1);
-
-        // Get the day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
         const firstDayOfWeek = firstDayDate.getDay();
-
-        // Adjust to Nepali week starting from Sunday
-        // If the first day is Sunday (0), it should map to Nepali Sunday (0)
-        // If the first day is Monday (1), it should map to Nepali Monday (1), and so on
-        return (firstDayOfWeek + 6) % 7; // Adjusting to Nepali week starting from Sunday
+        return (firstDayOfWeek + 6) % 7;
       } catch (error) {
         logError(error, 'Failed to get first day of the week');
-        return 0; // Default to Sunday if there's an error
+        return 0;
       }
     }
 
     _setupAutomaticUpdates() {
       try {
-        // Update at midnight
         const now = GLib.DateTime.new_now_local();
         const tomorrow = GLib.DateTime.new_local(
           now.get_year(),
@@ -326,10 +276,8 @@ const Indicator = GObject.registerClass(
     }
 
     _navigateMonth(offset) {
-      // Adjust the current date by the offset
       this._currentDate.nepaliMonth += offset;
 
-      // Handle year change if month goes out of bounds
       if (this._currentDate.nepaliMonth < 1) {
         this._currentDate.nepaliMonth = 12;
         this._currentDate.nepaliYear -= 1;
@@ -338,7 +286,6 @@ const Indicator = GObject.registerClass(
         this._currentDate.nepaliYear += 1;
       }
 
-      // Update the display and calendar grid
       this._updateDisplay();
       this._updateCalendarGrid();
     }
@@ -355,7 +302,6 @@ const Indicator = GObject.registerClass(
         this._timeout = null;
       }
 
-      // Reset to the current date before destroying
       this._currentDate = getCurrentNepaliDate();
       this._updateDisplay();
       this._updateCalendarGrid();
