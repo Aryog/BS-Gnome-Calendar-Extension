@@ -12,8 +12,7 @@
 .np-cal-year-month-label {
     font-size: 16px;
     font-weight: bold;
-    color: #c94114;
-    /* Primary color for year and month */
+    color: #ffffff;
     margin-bottom: 8px;
     text-align: center;
 }
@@ -58,7 +57,7 @@
 .np-cal-tithi-label,
 .np-cal-event-label {
     font-size: 14px;
-    color: #ffffff;
+    color: #ff0000;
     text-align: center;
     margin-top: 4px;
     white-space: normal;
@@ -98,6 +97,7 @@
     font-weight: bold;
     text-align: center;
     flex-grow: 1;
+    color: #ffffff;
 }
 
 /* Navigation buttons */
@@ -133,6 +133,7 @@
     margin: 2px;
     font-weight: bold;
     text-align: center;
+    color: #ffffff;
 }
 
 /* Day button */
@@ -143,6 +144,7 @@
     margin: 2px;
     padding: 0;
     text-align: center;
+    color: #ffffff;
 }
 
 .np-calendar-day:hover {
@@ -163,13 +165,13 @@
 
 /* Holiday styling */
 .np-calendar-holiday {
-    color: #ff6b6b;
+    color: #ff0000 !important;
     font-weight: bold;
 }
 
 /* Event indicator */
 .np-calendar-event-dot {
-    background-color: #33d17a;
+    background-color: #ff0000;
     width: 4px;
     height: 4px;
     border-radius: 2px;
@@ -182,30 +184,36 @@
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Tithi styling */
 .np-calendar-tithi {
     font-size: 1.1em;
     padding-bottom: 5px;
+    color: #ff0000 !important;
 }
 
+/* Events styling */
 .np-calendar-events {
-    color: #f66151;
+    color: #ff0000 !important;
 }
 
+/* Saturday styling */
 .np-calendar-saturday {
-    color: rgb(224, 27, 36);
-}
-
-/* Weekend styling */
-.np-calendar-weekend {
-    color: #f66151;
+    color: #ff0000 !important;
 }
 
 /* Day label inside button */
 .np-calendar-day-label {
     text-align: center;
+    color: #ffffff;
 }
 
 /* Top bar styling */
 .np-cal-panel-status-menu-box {
     spacing: 6px;
+}
+
+/* Make sure holiday and Saturday text stays red even when in a button */
+.np-calendar-day.np-calendar-holiday .np-calendar-day-label,
+.np-calendar-day.np-calendar-saturday .np-calendar-day-label {
+    color: #ff0000 !important;
 }
