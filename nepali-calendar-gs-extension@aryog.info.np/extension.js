@@ -67,11 +67,40 @@ const Indicator = GObject.registerClass(
         style_class: 'np-calendar'
       });
 
-      // Add month header
-      this._monthLabel = new St.Label({
-        style_class: 'np-calendar-month-year'
+      // Add navigation buttons
+      this._calendarHeader = new St.BoxLayout({
+        style_class: 'np-calendar-header',
+        vertical: false,
+        x_expand: true
       });
-      this._calendarBox.add_child(this._monthLabel);
+
+      this._prevButton = new St.Button({
+        style_class: 'np-calendar-nav-button',
+        can_focus: true,
+        label: '<',
+        x_align: Clutter.ActorAlign.START
+      });
+
+      this._nextButton = new St.Button({
+        style_class: 'np-calendar-nav-button',
+        can_focus: true,
+        label: '>',
+        x_align: Clutter.ActorAlign.END
+      });
+
+      this._prevButton.connect('clicked', () => this._navigateMonth(-1));
+      this._nextButton.connect('clicked', () => this._navigateMonth(1));
+
+      this._monthLabel = new St.Label({
+        style_class: 'np-calendar-month-year',
+        x_expand: true,
+        x_align: Clutter.ActorAlign.CENTER
+      });
+
+      this._calendarHeader.add_child(this._prevButton);
+      this._calendarHeader.add_child(this._monthLabel);
+      this._calendarHeader.add_child(this._nextButton);
+      this._calendarBox.add_child(this._calendarHeader);
 
       // Create calendar grid
       this._calendar = new St.Widget({
@@ -162,6 +191,25 @@ const Indicator = GObject.registerClass(
 
         const firstDayOfWeek = this._getFirstDayOfWeek(this._currentDate.nepaliYear, this._currentDate.nepaliMonth);
 
+        // Calculate previous month data
+        let prevMonth = this._currentDate.nepaliMonth - 1;
+        let prevYear = this._currentDate.nepaliYear;
+        if (prevMonth < 1) {
+          prevMonth = 12;
+          prevYear -= 1;
+        }
+        const prevMonthData = getYearDataFromCache(prevYear, this._extensionPath)[prevMonth - 1].days;
+        const prevMonthDaysToShow = firstDayOfWeek;
+
+        // Calculate next month data
+        let nextMonth = this._currentDate.nepaliMonth + 1;
+        let nextYear = this._currentDate.nepaliYear;
+        if (nextMonth > 12) {
+          nextMonth = 1;
+          nextYear += 1;
+        }
+        const nextMonthData = getYearDataFromCache(nextYear, this._extensionPath)[nextMonth - 1].days;
+
         // Clear all buttons
         this._dayButtons.forEach(({ button, label }) => {
           button.style_class = 'np-calendar-day';
@@ -171,31 +219,42 @@ const Indicator = GObject.registerClass(
 
         // Fill in the days
         let dayCounter = 0;
-        for (let i = 0; i < this._dayButtons.length && dayCounter < monthData.length; i++) {
-          if (i < firstDayOfWeek) continue;
-
+        let totalDays = monthData.length + prevMonthDaysToShow;
+        for (let i = 0; i < this._dayButtons.length; i++) {
           const { button, label } = this._dayButtons[i];
-          const dayData = monthData[dayCounter];
 
-          // Use the 'day' field from JSON to display in Devanagari
-          label.text = dayData.day;
+          if (i < prevMonthDaysToShow) {
+            // Fill with previous month's days
+            const dayData = prevMonthData[prevMonthData.length - prevMonthDaysToShow + i];
+            label.text = dayData.day;
+            button.add_style_class_name('np-calendar-prev-month');
+          } else if (dayCounter < monthData.length) {
+            // Fill with current month's days
+            const dayData = monthData[dayCounter];
+            label.text = dayData.day;
 
-          // Style current day
-          if (parseInt(dayData.dayInEn) === this._currentDate.nepaliDay) {
-            button.style_class = 'np-calendar-day np-calendar-today np-calendar-today-blue';
+            // Style current day
+            if (parseInt(dayData.dayInEn) === this._currentDate.nepaliDay) {
+              button.style_class = 'np-calendar-day np-calendar-today np-calendar-today-blue';
+            }
+
+            // Style holidays
+            if (dayData.isHoliday) {
+              button.add_style_class_name('np-calendar-holiday');
+            }
+
+            // Style Saturdays
+            if (i % 7 === 6) {
+              button.add_style_class_name('np-calendar-saturday');
+            }
+
+            dayCounter++;
+          } else {
+            // Fill with next month's days
+            const dayData = nextMonthData[i - totalDays];
+            label.text = dayData.day;
+            button.add_style_class_name('np-calendar-next-month');
           }
-
-          // Style holidays
-          if (dayData.isHoliday) {
-            button.add_style_class_name('np-calendar-holiday');
-          }
-
-          // Style Saturdays
-          if (i % 7 === 6) {
-            button.add_style_class_name('np-calendar-saturday');
-          }
-
-          dayCounter++;
         }
       } catch (error) {
         logError(error, 'Failed to update calendar grid');
@@ -252,6 +311,24 @@ const Indicator = GObject.registerClass(
       } catch (error) {
         logError(error, 'Failed to set up automatic updates');
       }
+    }
+
+    _navigateMonth(offset) {
+      // Adjust the current date by the offset
+      this._currentDate.nepaliMonth += offset;
+
+      // Handle year change if month goes out of bounds
+      if (this._currentDate.nepaliMonth < 1) {
+        this._currentDate.nepaliMonth = 12;
+        this._currentDate.nepaliYear -= 1;
+      } else if (this._currentDate.nepaliMonth > 12) {
+        this._currentDate.nepaliMonth = 1;
+        this._currentDate.nepaliYear += 1;
+      }
+
+      // Update the display and calendar grid
+      this._updateDisplay();
+      this._updateCalendarGrid();
     }
 
     destroy() {
