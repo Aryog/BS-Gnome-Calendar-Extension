@@ -1,0 +1,13 @@
+{
+    "name": "Nepali Calendar",
+    "description": "View Nepali Dates, Tithis, and more in the GNOME Shell",
+    "uuid": "nepali-calendar-gs-extension@aryog.info.np",
+    "shell-version": [
+        "45",
+        "46",
+        "47"
+    ],
+    "url": "https://github.com/aryog/nepali-calendar-gs-extension",
+    "version": 1,
+    "settings-schema": "org.gnome.shell.extensions.nepal-calendar"
+}

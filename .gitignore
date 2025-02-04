@@ -1,0 +1,7 @@
+*.compiled
+*.zip
+*.tar.gz
+*.tar.xz
+*.tar.bz2
+*.tar.7z
+*.tar.wim
