@@ -166,6 +166,7 @@ const Indicator = GObject.registerClass(
         this._dayButtons.forEach(({ button, label }) => {
           button.style_class = 'np-calendar-day';
           label.text = '';
+          label.style_class = 'np-calendar-day-label np-calendar-day-bold';
         });
 
         // Fill in the days
@@ -181,7 +182,7 @@ const Indicator = GObject.registerClass(
 
           // Style current day
           if (parseInt(dayData.dayInEn) === this._currentDate.nepaliDay) {
-            button.style_class = 'np-calendar-day np-calendar-today';
+            button.style_class = 'np-calendar-day np-calendar-today np-calendar-today-blue';
           }
 
           // Style holidays
