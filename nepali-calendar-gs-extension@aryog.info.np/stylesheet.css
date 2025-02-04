@@ -89,12 +89,15 @@
 /* Header with navigation */
 .np-calendar-header {
     padding: 0 10px 10px;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .np-calendar-month-year {
     font-size: 1.2em;
     font-weight: bold;
     text-align: center;
+    flex-grow: 1;
 }
 
 /* Navigation buttons */
@@ -103,6 +106,17 @@
     height: 24px;
     border-radius: 12px;
     padding: 0;
+    margin: 0 5px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    line-height: 24px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.np-calendar-nav-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 /* Calendar grid */
