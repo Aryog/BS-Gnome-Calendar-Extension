@@ -211,9 +211,21 @@ const Indicator = GObject.registerClass(
     }
 
     _getFirstDayOfWeek(year, month) {
-      // This should be calculated based on your actual data
-      // For now, returning a simple calculation
-      return (this._currentDate.dayOfWeek - ((this._currentDate.day - 1) % 7) + 7) % 7;
+      try {
+        // Create a new Date object for the first day of the given month and year
+        const firstDayDate = new Date(year, month - 1, 1);
+
+        // Get the day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+        const firstDayOfWeek = firstDayDate.getDay();
+
+        // Adjust to Nepali week starting from Sunday
+        // If the first day is Sunday (0), it should map to Nepali Sunday (0)
+        // If the first day is Monday (1), it should map to Nepali Monday (1), and so on
+        return (firstDayOfWeek + 6) % 7; // Adjusting to Nepali week starting from Sunday
+      } catch (error) {
+        logError(error, 'Failed to get first day of the week');
+        return 0; // Default to Sunday if there's an error
+      }
     }
 
     _setupAutomaticUpdates() {
