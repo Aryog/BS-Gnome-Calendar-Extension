@@ -170,13 +170,25 @@ const Indicator = GObject.registerClass(
 
       // Set up automatic updates
       this._setupAutomaticUpdates();
+
+      // Connect to the menu-closed signal
+      this.menu.connect('menu-closed', () => {
+        this._resetToCurrentDate();
+      });
     }
 
     _updateDisplay() {
       try {
         const dateInfo = formatNepaliDateData(this._currentDate, this._extensionPath);
-        this._topLabel.set_text(`${dateInfo.nepaliDay} ${dateInfo.nepaliMonth} ${dateInfo.nepaliYear}`);
+
+        // Update only the month label in the calendar header
         this._monthLabel.set_text(`${dateInfo.nepaliMonth} ${dateInfo.nepaliYear}`);
+
+        // Update the top bar label only with the current date
+        const currentDateInfo = getCurrentNepaliDate();
+        const currentTopBarInfo = formatNepaliDateData(currentDateInfo, this._extensionPath);
+        this._topLabel.set_text(`${currentTopBarInfo.nepaliDay} ${currentTopBarInfo.nepaliMonth} ${currentTopBarInfo.nepaliYear}`);
+
         this._tithiLabel.set_text(dateInfo.nepaliTithi || '');
         this._eventLabel.set_text(dateInfo.nepaliEvent ? dateInfo.nepaliEvent.split('/').join('\n') : '');
       } catch (error) {
@@ -331,11 +343,23 @@ const Indicator = GObject.registerClass(
       this._updateCalendarGrid();
     }
 
+    _resetToCurrentDate() {
+      this._currentDate = getCurrentNepaliDate();
+      this._updateDisplay();
+      this._updateCalendarGrid();
+    }
+
     destroy() {
       if (this._timeout) {
         GLib.source_remove(this._timeout);
         this._timeout = null;
       }
+
+      // Reset to the current date before destroying
+      this._currentDate = getCurrentNepaliDate();
+      this._updateDisplay();
+      this._updateCalendarGrid();
+
       super.destroy();
     }
   }
