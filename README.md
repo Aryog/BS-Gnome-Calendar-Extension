@@ -1,7 +1,8 @@
 # Nepali Calendar Gnome Shell Extension
 This is a gnome shell extension that shows Nepali calendar in the top bar of Gnome Shell. 
 
-
+## Screenshots
+![Screenshot](assets/nepali-calendar.png)
 
 ## Installation
 
@@ -28,6 +29,9 @@ This is a gnome shell extension that shows Nepali calendar in the top bar of Gno
     Alt + F2
     r
     ```
+    __or,__
+
+    If you don't have Wayland just logout and login
 5. Enable the extension using Gnome Tweaks or Extensions application.
 
 ## Usage
