@@ -202,7 +202,7 @@ const Indicator = GObject.registerClass(
         const yearData = getYearDataFromCache(this._currentDate.nepaliYear, this._extensionPath);
         const monthData = yearData[this._currentDate.nepaliMonth - 1].days;
 
-        const firstDayOfWeek = this._getFirstDayOfWeek(this._currentDate.nepaliYear, this._currentDate.nepaliMonth);
+        const { currentMonthFirstDay, prevMonthFirstDay, nextMonthFirstDay } = this._getFirstDayOfWeek(this._currentDate.nepaliYear, this._currentDate.nepaliMonth);
 
         // Clear all buttons
         this._dayButtons.forEach(({ button, label }) => {
@@ -213,7 +213,7 @@ const Indicator = GObject.registerClass(
 
         // Fill in the current month's days only
         let dayCounter = 0;
-        for (let i = firstDayOfWeek; i < firstDayOfWeek + monthData.length; i++) {
+        for (let i = currentMonthFirstDay; i < currentMonthFirstDay + monthData.length; i++) {
           const { button, label } = this._dayButtons[i];
           const dayData = monthData[dayCounter];
           label.text = dayData.day;
@@ -242,12 +242,51 @@ const Indicator = GObject.registerClass(
 
     _getFirstDayOfWeek(year, month) {
       try {
-        const firstDayDate = new Date(year, month - 1, 1);
-        const firstDayOfWeek = firstDayDate.getDay();
-        return (firstDayOfWeek + 6) % 7;
+        // Reference date: 1st Baisakh 2081 was on Saturday (6)
+        const referenceYear = 2081;
+        const referenceMonth = 1;
+        const referenceDayOfWeek = 6; // Saturday
+
+        const yearData = getYearDataFromCache(year, this._extensionPath);
+
+        // Calculate total days from reference date to target date
+        let totalDays = 0;
+
+        // Add days for complete years
+        for (let y = referenceYear; y < year; y++) {
+          const prevYearData = getYearDataFromCache(y, this._extensionPath);
+          for (let m = 0; m < 12; m++) {
+            if (prevYearData[m]) {
+              totalDays += prevYearData[m].days.length;
+            }
+          }
+        }
+
+        // Add days for months in the target year
+        for (let m = 0; m < month - 1; m++) {
+          if (yearData[m]) {
+            totalDays += yearData[m].days.length;
+          }
+        }
+
+        // Calculate the day of week for the first day of target month
+        const currentMonthFirstDay = (referenceDayOfWeek + totalDays) % 7;
+
+        // Calculate previous and next month first days
+        const previousMonthData = yearData[month - 2] || yearData[11]; // Handle January case
+        const currentMonthData = yearData[month - 1];
+
+        const prevMonthFirstDay = ((currentMonthFirstDay - previousMonthData.days.length % 7) + 7) % 7;
+        const nextMonthFirstDay = (currentMonthFirstDay + currentMonthData.days.length) % 7;
+
+        return {
+          currentMonthFirstDay,
+          prevMonthFirstDay,
+          nextMonthFirstDay
+        };
       } catch (error) {
         logError(error, 'Failed to get first day of the week');
-        return 0;
+        return { currentMonthFirstDay: 0, prevMonthFirstDay: 0, nextMonthFirstDay: 0 };
       }
     }
 
@@ -284,6 +323,13 @@ const Indicator = GObject.registerClass(
       } else if (this._currentDate.nepaliMonth > 12) {
         this._currentDate.nepaliMonth = 1;
         this._currentDate.nepaliYear += 1;
+      }
+
+      // Ensure the day is valid for the new month
+      const yearData = getYearDataFromCache(this._currentDate.nepaliYear, this._extensionPath);
+      const monthData = yearData[this._currentDate.nepaliMonth - 1].days;
+      if (this._currentDate.nepaliDay > monthData.length) {
+        this._currentDate.nepaliDay = monthData.length;
       }
 
       this._updateDisplay();
