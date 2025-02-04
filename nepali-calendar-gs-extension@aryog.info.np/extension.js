@@ -32,12 +32,22 @@ import {
   getCurrentNepaliDate,
 } from './utils/NepaliDateConverter.js';
 
+const DAYS_OF_WEEK = ['आइत', 'सोम', 'मंगल', 'बुध', 'बिहि', 'शुक्र', 'शनि'];
+
 const Indicator = GObject.registerClass(
   class Indicator extends PanelMenu.Button {
     _init(extensionPath) {
       super._init(0.0, 'Nepali Date Extension');
-      this._updateTimeout = null;
       this._extensionPath = extensionPath;
+      this._currentDate = getCurrentNepaliDate();
+      this._displayDate = { ...this._currentDate };
+
+      this._setupInterface();
+      this._updateLabel();
+    }
+
+    _setupInterface() {
+      // Top bar display
       this._box = new St.BoxLayout({
         style_class: 'np-cal-panel-status-menu-box',
       });
@@ -48,59 +58,118 @@ const Indicator = GObject.registerClass(
       });
       this._box.add_child(this._nepaliDateLabel);
       this.add_child(this._box);
-      this._createPopupMenu();
-      this._updateLabel();
+
+      // Calendar popup
+      this._calendar = new St.Widget({
+        style_class: 'np-calendar',
+        layout_manager: new Clutter.GridLayout(),
+        reactive: true
+      });
+
+      // Create header with navigation
+      this._createHeader();
+
+      // Create calendar grid
+      this._createCalendarGrid();
+
+      // Add to menu
+      const calendarItem = new PopupMenu.PopupBaseMenuItem({
+        reactive: false
+      });
+      calendarItem.add_child(this._calendar);
+      this.menu.addMenuItem(calendarItem);
+
+      // Add info section
+      this._createInfoSection();
     }
 
-    _createPopupMenu() {
-      const popupContainer = new St.BoxLayout({
+    _createHeader() {
+      const headerBox = new St.BoxLayout({
+        style_class: 'np-calendar-header'
+      });
+
+      // Previous month button
+      const prevButton = new St.Button({
+        style_class: 'np-calendar-nav-button',
+        child: new St.Icon({
+          icon_name: 'go-previous-symbolic',
+          icon_size: 16
+        })
+      });
+      prevButton.connect('clicked', () => this._previousMonth());
+
+      // Month/Year label
+      this._monthLabel = new St.Label({
+        style_class: 'np-calendar-month-year',
+        x_expand: true,
+        x_align: Clutter.ActorAlign.CENTER
+      });
+
+      // Next month button
+      const nextButton = new St.Button({
+        style_class: 'np-calendar-nav-button',
+        child: new St.Icon({
+          icon_name: 'go-next-symbolic',
+          icon_size: 16
+        })
+      });
+      nextButton.connect('clicked', () => this._nextMonth());
+
+      headerBox.add_child(prevButton);
+      headerBox.add_child(this._monthLabel);
+      headerBox.add_child(nextButton);
+
+      this._calendar.layout_manager.attach(headerBox, 0, 0, 7, 1);
+    }
+
+    _createCalendarGrid() {
+      // Days of week headers
+      DAYS_OF_WEEK.forEach((day, i) => {
+        const label = new St.Label({
+          text: day,
+          style_class: 'np-calendar-day-heading'
+        });
+        this._calendar.layout_manager.attach(label, i, 1, 1, 1);
+      });
+
+      // Create day buttons grid
+      this._buttons = [];
+      for (let i = 0; i < 6; i++) {
+        for (let j = 0; j < 7; j++) {
+          const button = new St.Button({
+            style_class: 'np-calendar-day-base',
+            can_focus: true,
+            x_expand: true,
+            y_expand: true
+          });
+          this._calendar.layout_manager.attach(button, j, i + 2, 1, 1);
+          this._buttons.push(button);
+        }
+      }
+    }
+
+    _createInfoSection() {
+      const infoBox = new St.BoxLayout({
         vertical: true,
-        style_class: 'np-cal-custom-popup-container',
+        style_class: 'np-calendar-info'
       });
-      this._yearMonthLabel = new St.Label({
-        text: '',
-        style_class: 'np-cal-year-month-label',
-      });
-      const dayDateContainer = new St.BoxLayout({
-        style_class: 'np-cal-day-date-circle',
-        vertical: true,
-        x_align: Clutter.ActorAlign.CENTER,
-      });
-      this._dayLabel = new St.Label({
-        text: '',
-        style_class: 'np-cal-day-label',
-      });
-      this._dateLabel = new St.Label({
-        text: '',
-        style_class: 'np-cal-date-label',
-      });
-      dayDateContainer.add_child(this._dayLabel);
-      dayDateContainer.add_child(this._dateLabel);
-      this._englishDateLabel = new St.Label({
-        text: '',
-        style_class: 'np-cal-english-date-label',
-      });
+
       this._tithiLabel = new St.Label({
-        text: '',
-        style_class: 'np-cal-tithi-label',
+        style_class: 'np-calendar-tithi'
       });
+
       this._eventLabel = new St.Label({
-        text: '',
-        style_class: 'np-cal-event-label',
+        style_class: 'np-calendar-events'
       });
 
-      popupContainer.add_child(this._yearMonthLabel);
-      popupContainer.add_child(dayDateContainer);
-      popupContainer.add_child(this._englishDateLabel);
-      popupContainer.add_child(this._tithiLabel);
-      popupContainer.add_child(this._eventLabel);
+      infoBox.add_child(this._tithiLabel);
+      infoBox.add_child(this._eventLabel);
 
-      const customItem = new PopupMenu.PopupBaseMenuItem({
-        reactive: false,
+      const infoItem = new PopupMenu.PopupBaseMenuItem({
+        reactive: false
       });
-      customItem.add_style_class_name('np-cal-custom-popup-item');
-      customItem.actor.add_child(popupContainer);
-      this.menu.addMenuItem(customItem);
+      infoItem.add_child(infoBox);
+      this.menu.addMenuItem(infoItem);
     }
 
     _updateLabel() {
@@ -112,12 +181,10 @@ const Indicator = GObject.registerClass(
         `${nepaliDateInfo.nepaliDay} ${nepaliDateInfo.nepaliMonth} (${nepaliDateInfo.nepaliDayOfWeek})`
       );
 
-      this._yearMonthLabel.set_text(
+      this._monthLabel.set_text(
         `${nepaliDateInfo.nepaliYear} ${nepaliDateInfo.nepaliMonth}`
       );
-      this._dayLabel.set_text(nepaliDateInfo.nepaliDayOfWeek);
-      this._dateLabel.set_text(nepaliDateInfo.nepaliDay);
-      this._englishDateLabel.set_text(nepaliDateInfo.englishDate);
+
       this._tithiLabel.set_text(nepaliDateInfo.nepaliTithi);
       this._eventLabel.set_text(
         nepaliDateInfo.nepaliEvent.split('/').join('\n')
