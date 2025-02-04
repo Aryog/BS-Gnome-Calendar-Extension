@@ -82,8 +82,8 @@
 
 /* Calendar container */
 .np-calendar {
-    padding: 10px;
-    min-width: 260px;
+    padding: 12px;
+    min-width: 280px;
 }
 
 /* Header with navigation */
@@ -102,7 +102,7 @@
     width: 24px;
     height: 24px;
     border-radius: 12px;
-    padding: 4px;
+    padding: 0;
 }
 
 /* Calendar grid */
@@ -115,24 +115,24 @@
 .np-calendar-day-heading {
     width: 35px;
     height: 24px;
-    padding: 5px 0;
-    text-align: center;
+    padding: 0;
+    margin: 2px;
     font-weight: bold;
+    text-align: center;
 }
 
 /* Day button */
-.np-calendar-day-base {
+.np-calendar-day {
     width: 35px;
     height: 35px;
     border-radius: 4px;
-    text-align: center;
+    margin: 2px;
     padding: 0;
-    margin: 1px;
+    text-align: center;
 }
 
-.np-calendar-day {
-    margin: 0;
-    padding: 0;
+.np-calendar-day:hover {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .np-calendar-day-current {
@@ -143,8 +143,7 @@
 
 /* Today styling */
 .np-calendar-today {
-    background-color: #3584e4;
-    color: white;
+    background-color: rgba(53, 132, 228, 0.3);
     font-weight: bold;
 }
 
@@ -175,9 +174,24 @@
 }
 
 .np-calendar-events {
-    color: rgb(192, 191, 188);
+    color: #f66151;
 }
 
 .np-calendar-saturday {
     color: rgb(224, 27, 36);
+}
+
+/* Weekend styling */
+.np-calendar-weekend {
+    color: #f66151;
+}
+
+/* Day label inside button */
+.np-calendar-day-label {
+    text-align: center;
+}
+
+/* Top bar styling */
+.np-cal-panel-status-menu-box {
+    spacing: 6px;
 }
