@@ -30,6 +30,7 @@ import {
 import {
   formatNepaliDateData,
   getCurrentNepaliDate,
+  getYearDataFromCache
 } from './utils/NepaliDateConverter.js';
 
 const DAYS_OF_WEEK = ['आइत', 'सोम', 'मंगल', 'बुध', 'बिहि', 'शुक्र', 'शनि'];
@@ -143,43 +144,60 @@ const Indicator = GObject.registerClass(
     }
 
     _updateDisplay() {
-      const dateInfo = formatNepaliDateData(this._currentDate, this._extensionPath);
-      this._topLabel.set_text(`${dateInfo.nepaliDay} ${dateInfo.nepaliMonth} ${dateInfo.nepaliYear}`);
-      this._monthLabel.set_text(`${dateInfo.nepaliMonth} ${dateInfo.nepaliYear}`);
-      this._tithiLabel.set_text(dateInfo.nepaliTithi || '');
-      this._eventLabel.set_text(dateInfo.nepaliEvent ? dateInfo.nepaliEvent.split('/').join('\n') : '');
+      try {
+        const dateInfo = formatNepaliDateData(this._currentDate, this._extensionPath);
+        this._topLabel.set_text(`${dateInfo.nepaliDay} ${dateInfo.nepaliMonth} ${dateInfo.nepaliYear}`);
+        this._monthLabel.set_text(`${dateInfo.nepaliMonth} ${dateInfo.nepaliYear}`);
+        this._tithiLabel.set_text(dateInfo.nepaliTithi || '');
+        this._eventLabel.set_text(dateInfo.nepaliEvent ? dateInfo.nepaliEvent.split('/').join('\n') : '');
+      } catch (error) {
+        logError(error, 'Failed to update display');
+      }
     }
 
     _updateCalendarGrid() {
-      const dateInfo = formatNepaliDateData(this._currentDate, this._extensionPath);
-      const daysInMonth = this._getDaysInMonth(dateInfo.nepaliYear, dateInfo.nepaliMonth);
-      const firstDayOfWeek = this._getFirstDayOfWeek(dateInfo.nepaliYear, dateInfo.nepaliMonth);
+      try {
+        const yearData = getYearDataFromCache(this._currentDate.nepaliYear, this._extensionPath);
+        const monthData = yearData[this._currentDate.nepaliMonth - 1].days;
 
-      // Clear all buttons
-      this._dayButtons.forEach(({ button, label }) => {
-        button.style_class = 'np-calendar-day';
-        label.text = '';
-      });
+        const firstDayOfWeek = this._getFirstDayOfWeek(this._currentDate.nepaliYear, this._currentDate.nepaliMonth);
 
-      // Fill in the days
-      let dayCounter = 1;
-      for (let i = 0; i < this._dayButtons.length && dayCounter <= daysInMonth; i++) {
-        if (i < firstDayOfWeek) continue;
+        // Clear all buttons
+        this._dayButtons.forEach(({ button, label }) => {
+          button.style_class = 'np-calendar-day';
+          label.text = '';
+        });
 
-        const { button, label } = this._dayButtons[i];
-        label.text = dayCounter.toString();
+        // Fill in the days
+        let dayCounter = 0;
+        for (let i = 0; i < this._dayButtons.length && dayCounter < monthData.length; i++) {
+          if (i < firstDayOfWeek) continue;
 
-        // Style current day
-        if (dayCounter === this._currentDate.day) {
-          button.style_class = 'np-calendar-day np-calendar-today';
+          const { button, label } = this._dayButtons[i];
+          const dayData = monthData[dayCounter];
+
+          // Use the 'day' field from JSON to display in Devanagari
+          label.text = dayData.day;
+
+          // Style current day
+          if (parseInt(dayData.dayInEn) === this._currentDate.nepaliDay) {
+            button.style_class = 'np-calendar-day np-calendar-today';
+          }
+
+          // Style holidays
+          if (dayData.isHoliday) {
+            button.add_style_class_name('np-calendar-holiday');
+          }
+
+          // Style Saturdays
+          if (i % 7 === 6) {
+            button.add_style_class_name('np-calendar-saturday');
+          }
+
+          dayCounter++;
         }
-
-        // Style Saturdays
-        if (i % 7 === 6) {
-          button.add_style_class_name('np-calendar-saturday');
-        }
-
-        dayCounter++;
+      } catch (error) {
+        logError(error, 'Failed to update calendar grid');
       }
     }
 
@@ -199,24 +217,28 @@ const Indicator = GObject.registerClass(
     }
 
     _setupAutomaticUpdates() {
-      // Update at midnight
-      const now = GLib.DateTime.new_now_local();
-      const tomorrow = GLib.DateTime.new_local(
-        now.get_year(),
-        now.get_month(),
-        now.get_day_of_month() + 1,
-        0, 0, 0
-      );
+      try {
+        // Update at midnight
+        const now = GLib.DateTime.new_now_local();
+        const tomorrow = GLib.DateTime.new_local(
+          now.get_year(),
+          now.get_month(),
+          now.get_day_of_month() + 1,
+          0, 0, 0
+        );
 
-      const seconds = tomorrow.difference(now) / 1000000;
+        const seconds = tomorrow.difference(now) / 1000000;
 
-      this._timeout = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, seconds, () => {
-        this._currentDate = getCurrentNepaliDate();
-        this._updateDisplay();
-        this._updateCalendarGrid();
-        this._setupAutomaticUpdates();
-        return GLib.SOURCE_REMOVE;
-      });
+        this._timeout = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, seconds, () => {
+          this._currentDate = getCurrentNepaliDate();
+          this._updateDisplay();
+          this._updateCalendarGrid();
+          this._setupAutomaticUpdates();
+          return GLib.SOURCE_REMOVE;
+        });
+      } catch (error) {
+        logError(error, 'Failed to set up automatic updates');
+      }
     }
 
     destroy() {
